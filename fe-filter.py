@@ -1,21 +1,22 @@
 ## execfile("/home/chris/code/FEniCS/src/kitware/fe-filter.py")
 
 def make_outcell_from_tetrahedron(in_vals, element_type,
-                                  cells_indices, cells_points,
+                                  value_indices, cells_points,
                                   ds_out, out_vals):
 
-    index_nc = len(cells_indices)
-    out_components = 1
-    if (element_type == "CG2" or element_type == "DG2") and index_nc > 10:
-        out_components = 3
-    if (element_type == "CG1" or element_type == "DG1") and index_nc > 4:
-        out_components = 3
-    out_vals.SetNumberOfComponents(out_components)
+    index_nc = len(value_indices)
+    # Work out number of components (scalar/vector/tensor)
+    ncomp = 1
+    if element_type[:2] == "CG" or element_type[:2] == "DG":
+        d = int(element_type[2:])
+        d = (d + 1)*(d + 2)*(d + 3)/6
+        assert index_nc%d == 0
+        ncomp = index_nc/d
+
+    out_vals.SetNumberOfComponents(ncomp)
 
     if element_type == "DG1" or element_type == "CG1":
         # CG1 should be simplified (no need to rebuild mesh)
-        assert index_nc%4 == 0
-        nv = index_nc/4
         ptlist = [None, None, None, None]
         scnt = ds_out.GetPoints().GetNumberOfPoints()
         for ix in range(0, 4):
@@ -23,8 +24,8 @@ def make_outcell_from_tetrahedron(in_vals, element_type,
             ds_out.GetPoints().InsertNextPoint(coord)
 
             # Scalar (one value), Vector (two or three values)
-            for i in range(nv):
-                index = cells_indices[ix + i*4]
+            for i in range(ncomp):
+                index = value_indices[ix + i*d]
                 v = in_vals.GetTuple(index)[0]
                 out_vals.InsertNextValue(v)
 
@@ -34,8 +35,6 @@ def make_outcell_from_tetrahedron(in_vals, element_type,
 
     elif element_type == "CG2" or element_type == "DG2":
         # Represent CG2/DG2 on a quadratic mesh
-        assert index_nc%10 == 0
-        nv = index_nc/10
         ptlist = [None, None, None, None, None, None, None, None, None, None]
         scnt = ds_out.GetPoints().GetNumberOfPoints()
         for ix in range(0, 10):
@@ -53,8 +52,8 @@ def make_outcell_from_tetrahedron(in_vals, element_type,
             ds_out.GetPoints().InsertNextPoint(c)
 
             qmap = [0, 1, 2, 3, 9, 6, 8, 7, 5, 4]
-            for i in range(nv):
-                index = cells_indices[qmap[ix] + i*10]
+            for i in range(ncomp):
+                index = value_indices[qmap[ix] + i*d]
                 v = in_vals.GetTuple(index)[0]
                 out_vals.InsertNextValue(v)
 
@@ -66,24 +65,25 @@ def make_outcell_from_tetrahedron(in_vals, element_type,
     return
 
 def make_outcell_from_triangle(in_vals, element_type,
-                             cells_indices, cells_points,
+                             value_indices, cells_points,
                              ds_out, out_vals):
 
-    index_nc = len(cells_indices)
-    out_components = 1
-    if (element_type == "CG2" or element_type == "DG2") and index_nc > 6:
-        out_components = 3
-    if (element_type == "CG1" or element_type == "DG1") and index_nc > 3:
-        out_components = 3
-    if (element_type == "RT1"):
-        out_components = 3
+    index_nc = len(value_indices)
+    # Work out number of components (scalar/vector/tensor)
+    ncomp = 1
+    if element_type[:2] == "CG" or element_type[:2] == "DG":
+        d = int(element_type[2:])
+        d = (d + 1)*(d + 2)/2
+        assert index_nc%d == 0
+        ncomp = index_nc/d
 
-    out_vals.SetNumberOfComponents(out_components)
+    if (element_type == "RT1"):
+        ncomp = 3
+
+    out_vals.SetNumberOfComponents(ncomp)
 
     if element_type == "DG1" or element_type == "CG1":
         # CG1 should be simplified (no need to rebuild mesh)
-        assert index_nc%3 == 0
-        nv = index_nc/3
         ptlist = [None, None, None]
         scnt = ds_out.GetPoints().GetNumberOfPoints()
         for ix in range(0, 3):
@@ -91,13 +91,10 @@ def make_outcell_from_triangle(in_vals, element_type,
             ds_out.GetPoints().InsertNextPoint(coord)
 
             # Scalar (one value), Vector (two or three values)
-            for i in range(nv):
-                index = cells_indices[ix + i*3]
+            for i in range(ncomp):
+                index = value_indices[ix + i*3]
                 v = in_vals.GetTuple(index)[0]
                 out_vals.InsertNextValue(v)
-                # Pad out 2D vector to 3D
-            if nv == 2:
-                out_vals.InsertNextValue(0.0)
 
             ptlist[ix] = scnt
             scnt = scnt+1
@@ -105,8 +102,6 @@ def make_outcell_from_triangle(in_vals, element_type,
 
     elif element_type == "CG2" or element_type == "DG2":
         # Represent CG2/DG2 on a quadratic mesh
-        assert index_nc%6 == 0
-        nv = index_nc/6
         ptlist = [None, None, None, None, None, None]
         scnt = ds_out.GetPoints().GetNumberOfPoints()
         for ix in range(0, 6):
@@ -121,12 +116,10 @@ def make_outcell_from_triangle(in_vals, element_type,
             ds_out.GetPoints().InsertNextPoint(c)
 
             qmap = [0, 1, 2, 5, 3, 4]
-            for i in range(nv):
-                index = cells_indices[qmap[ix] + i*6]
+            for i in range(ncomp):
+                index = value_indices[qmap[ix] + i*6]
                 v = in_vals.GetTuple(index)[0]
                 out_vals.InsertNextValue(v)
-            if nv == 2:
-                out_vals.InsertNextValue(0.0)
 
             ptlist[ix] = scnt
             scnt = scnt+1
@@ -136,17 +129,13 @@ def make_outcell_from_triangle(in_vals, element_type,
         # Downsample CG* to CG1 by taking the first three values...
         # Could be much improved, e.g. by creating more cells...
         ptlist = [None, None, None]
-        dd = int(element_type[2:])
-        dd = dd*(dd + 1)/2
-        assert index_nc%dd == 0
-        nv = index_nc/dd
         scnt = ds_out.GetPoints().GetNumberOfPoints()
         for ix in range(0, 3):
             coord = cells_points.GetPoint(ix)
             ds_out.GetPoints().InsertNextPoint(coord)
 
             for i in range(nv):
-                index = cells_indices[ix + i*dd]
+                index = value_indices[ix + i*d]
                 v = in_vals.GetTuple(index)[0]
                 out_vals.InsertNextValue(v)
 
@@ -178,7 +167,7 @@ def make_outcell_from_triangle(in_vals, element_type,
                   0.0]
             ds_out.GetPoints().InsertNextPoint(pt)
 
-            index = cells_indices[qmap[ix]]
+            index = value_indices[qmap[ix]]
             v = in_vals.GetTuple(index)[0]
             out_vals.InsertNextValue(v*n[ix][0])
             out_vals.InsertNextValue(v*n[ix][1])
@@ -191,18 +180,19 @@ def make_outcell_from_triangle(in_vals, element_type,
         print "Cannot yet represent element type: ", element_type
     return
 
-
-def make_outcell_from_incell(in_vals, in_cell_type, element_type,
-                             cells_indices, cells_points,
-                             ds_out, out_vals):
+def make_outcell_from_incell(in_vals, in_cell, element_type,
+                             value_indices, ds_out, out_vals):
 
     global make_outcell_from_triangle
     global make_outcell_from_tetrahedron
 
+    in_cell_type = in_cell.GetCellType()
+    cells_points = in_cell.GetPoints()
+
     if in_cell_type == vtk.VTK_TRIANGLE:
-        make_outcell_from_triangle(in_vals, element_type, cells_indices, cells_points, ds_out, out_vals)
+        make_outcell_from_triangle(in_vals, element_type, value_indices, cells_points, ds_out, out_vals)
     elif in_cell_type == vtk.VTK_TETRA:
-        make_outcell_from_tetrahedron(in_vals, element_type, cells_indices, cells_points, ds_out, out_vals)
+        make_outcell_from_tetrahedron(in_vals, element_type, value_indices, cells_points, ds_out, out_vals)
     else:
         print "Cannot yet represent cell type: ", in_cell_type
 
@@ -221,7 +211,7 @@ def traverse(ds_in, ds_out):
     in_vals_name = ds_in.GetFieldData().GetArrayName(0)
     in_vals = ds_in.GetFieldData().GetArray(in_vals_name)
 
-    # Get the cell type and check it matches
+    # Get the element type and check it matches
     assert in_idx_name.split("_")[-1] == "idx"
     element_type = in_idx_name.split("_")[-2]
     assert in_vals_name.split("_")[-1] == "val"
@@ -250,18 +240,14 @@ def traverse(ds_in, ds_out):
         ds_out.GetPointData().AddArray(out_vals)
 
     for x in range(0, ds_in.GetNumberOfCells()):
-        in_cell_type = ds_in.GetCellType(x)
+        in_cell = ds_in.GetCell(x)
 
-        # Get info needed to translate from input to output cell type
-        # Points that make up the cell
-        cells_points = ds_in.GetCell(x).GetPoints()
         # Indices to quantities for this cell
-        cells_indices = [int(i) for i in index_array.GetTuple(x)]
+        value_indices = [int(i) for i in index_array.GetTuple(x)]
 
-        #now make up new cells for that input cell
-        make_outcell_from_incell(in_vals, in_cell_type, element_type,
-                                 cells_indices, cells_points,
-                                 ds_out, out_vals)
+        # Now make up new cells for that input cell
+        make_outcell_from_incell(in_vals, in_cell, element_type,
+                                 value_indices, ds_out, out_vals)
 
     # Remove FieldData - no longer needed
     ds_out.GetFieldData().RemoveArray(in_vals_name)

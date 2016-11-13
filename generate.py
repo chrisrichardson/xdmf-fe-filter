@@ -66,6 +66,12 @@ def output_vector_xdmf(mesh, vector_expression, file_suffix):
     xdmf = XDMFFile("vector_cg2_" + file_suffix + ".xdmf")
     xdmf.write_experimental(F, XDMFFile.Encoding_ASCII)
 
+    Q = FunctionSpace(mesh, "RT", 1)
+    F = Function(Q)
+    F.interpolate(Expression(vector_expression, degree=1))
+    xdmf = XDMFFile("vector_rt1_" + file_suffix + ".xdmf")
+    xdmf.write_experimental(F, XDMFFile.Encoding_ASCII)
+
 
 # 2D
 mesh = UnitSquareMesh(10, 10)
@@ -74,6 +80,7 @@ output_vector_xdmf(mesh, ("sin(2*pi*x[0])","cos(2*pi*x[1])"), "2D")
 
 # 2D manifold
 mesh = UnitDiscMesh(mpi_comm_world(), 5, 1, 3)
+mesh.init_cell_orientations(Constant((0,0,1)))
 output_scalar_xdmf(mesh, "sin(2*pi*x[0])*cos(2*pi*x[1])", "2D3")
 output_vector_xdmf(mesh, ("sin(2*pi*x[0])","cos(2*pi*x[1])","1.0"), "2D3")
 
