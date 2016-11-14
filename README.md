@@ -5,13 +5,13 @@ ParaView filter to read Finite Element data in XDMF format
 
 ## Format
 At present, the XDMF contains an Unstructured Grid, i.e. mesh topology and geometry, and two *Attributes*, which
-must be named as xxx_ELEMENT_idx and xxx_ELEMENT_val, where xxx is user defined, and ELEMENT is one of:
+must be named as *xxx_ELEMENT_idx* and *xxx_ELEMENT_val*, where *xxx* is user defined, and *ELEMENT* is one of:
 
  * CG1, CG2
  * DG0, DG1, DG2
  * RT1
 
-The xxx_ELEMENT_val Attribute is a 1D float array, and the xxx_ELEMENT_idx is a 2D UInt array, with index values
+The *xxx_ELEMENT_val* Attribute is a 1D float array, and the *xxx_ELEMENT_idx* is a 2D UInt array, with index values
 for the nodal values in each cell. Hence the first dimension must be the same as the number of cells.
 In order to read correctly, use the Xdmf3 reader in ParaView.
 
