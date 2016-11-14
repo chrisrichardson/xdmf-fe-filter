@@ -1,3 +1,4 @@
+#!/usr/bin/python
 """
 Script to generate a range of XDMF files with Finite Element "Index + Data" format
 """

@@ -1,8 +1,10 @@
 ## execfile("/home/chris/code/FEniCS/src/kitware/fe-filter.py")
 
 def make_outcell_from_tetrahedron(in_vals, element_type,
-                                  value_indices, cells_points,
+                                  value_indices, in_cell,
                                   ds_out, out_vals):
+
+    cells_points = in_cell.GetPoints()
 
     index_nc = len(value_indices)
     # Work out number of components (scalar/vector/tensor)
@@ -65,8 +67,8 @@ def make_outcell_from_tetrahedron(in_vals, element_type,
     return
 
 def make_outcell_from_triangle(in_vals, element_type,
-                             value_indices, cells_points,
-                             ds_out, out_vals):
+                               value_indices, in_cell,
+                               ds_out, out_vals):
 
     index_nc = len(value_indices)
     # Work out number of components (scalar/vector/tensor)
@@ -81,6 +83,8 @@ def make_outcell_from_triangle(in_vals, element_type,
         ncomp = 3
 
     out_vals.SetNumberOfComponents(ncomp)
+
+    cells_points = in_cell.GetPoints()
 
     if element_type == "DG1" or element_type == "CG1":
         # CG1 should be simplified (no need to rebuild mesh)
@@ -149,25 +153,27 @@ def make_outcell_from_triangle(in_vals, element_type,
         ptlist = [None, None, None]
         scnt = ds_out.GetPoints().GetNumberOfPoints()
 
-        # Find cell corners, and calculate normals to edges
-        coord = [None, None, None]
-        for ix in range(0, 3):
-            coord[ix] = cells_points.GetPoint(ix)
+        point_ids = [in_cell.GetPointIds().GetId(i) for i in range(3)]
+        coord = [cells_points.GetPoint(i) for i in range(3)]
+        print point_ids
+
+        # Calculate normals
         n = [None, None, None]
         for ix in range(3):
-            n[ix] = [coord[ix][1] - coord[(ix+1)%3][1],
-                     coord[(ix+1)%3][0] - coord[ix][0]]
+            ix1 = (ix+1)%3
+            n[ix] = [coord[ix1][1] - coord[ix][1],
+                     coord[ix][0] - coord[ix1][0]]
             n[ix] /= sqrt(n[ix][0]**2 + n[ix][1]**2)
+            if (point_ids[ix] > point_ids[ix1]):
+                n[ix] *= -1
 
-        # FIXME: mapping is all wrong... needs sorting out
-        qmap = [ 1, 0, 2]
         for ix in range(0, 3):
             pt = [0.5*(coord[ix][0] + coord[(ix+1)%3][0]),
                   0.5*(coord[ix][1] + coord[(ix+1)%3][1]),
                   0.0]
             ds_out.GetPoints().InsertNextPoint(pt)
 
-            index = value_indices[qmap[ix]]
+            index = value_indices[(ix+2)%3]
             v = in_vals.GetTuple(index)[0]
             out_vals.InsertNextValue(v*n[ix][0])
             out_vals.InsertNextValue(v*n[ix][1])
@@ -187,12 +193,11 @@ def make_outcell_from_incell(in_vals, in_cell, element_type,
     global make_outcell_from_tetrahedron
 
     in_cell_type = in_cell.GetCellType()
-    cells_points = in_cell.GetPoints()
 
     if in_cell_type == vtk.VTK_TRIANGLE:
-        make_outcell_from_triangle(in_vals, element_type, value_indices, cells_points, ds_out, out_vals)
+        make_outcell_from_triangle(in_vals, element_type, value_indices, in_cell, ds_out, out_vals)
     elif in_cell_type == vtk.VTK_TETRA:
-        make_outcell_from_tetrahedron(in_vals, element_type, value_indices, cells_points, ds_out, out_vals)
+        make_outcell_from_tetrahedron(in_vals, element_type, value_indices, in_cell, ds_out, out_vals)
     else:
         print "Cannot yet represent cell type: ", in_cell_type
 
